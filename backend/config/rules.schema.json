@@ -1,0 +1,106 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/example/cef-filter-proxy/config/rules.schema.json",
+  "title": "CEF Filter Proxy rule set",
+  "description": "Ordered, first-match-wins filter rules for the CEF/Syslog filter-and-forward proxy. The canonical runtime model is app/rules/models.py (Pydantic); this schema mirrors it for editors, agents, and CI validation.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "default_policy": {
+      "description": "Action for events matching no rule. Omit to inherit DEFAULT_POLICY from settings.",
+      "type": ["string", "null"],
+      "enum": ["forward", "drop", null]
+    },
+    "rules": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/rule" }
+    }
+  },
+  "$defs": {
+    "field": {
+      "description": "Logical CEF field name. The 10 known fields are listed; any CEF extension key is also accepted.",
+      "type": "string",
+      "minLength": 1,
+      "examples": [
+        "eventid", "filterhostname", "filterid", "filteripaddress",
+        "filternodename", "filterpriority", "filtertype", "notificationtime",
+        "name", "severity"
+      ]
+    },
+    "operator": {
+      "type": "string",
+      "enum": [
+        "eq", "ne", "in", "not_in", "contains", "not_contains",
+        "regex", "not_regex", "cidr", "not_cidr",
+        "gt", "ge", "lt", "le", "between", "exists", "not_exists"
+      ]
+    },
+    "condition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["field", "op"],
+      "properties": {
+        "field": { "$ref": "#/$defs/field" },
+        "op": { "$ref": "#/$defs/operator" },
+        "value": {
+          "description": "Scalar for eq/ne/contains/regex/numeric; array for in/not_in/cidr/not_cidr; [low,high] for between; omitted for exists/not_exists.",
+          "type": ["string", "number", "boolean", "array", "null"],
+          "items": { "type": ["string", "number"] }
+        },
+        "case_insensitive": { "type": "boolean", "default": false }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "op": { "enum": ["exists", "not_exists"] } } },
+          "then": { "not": { "required": ["value"] } },
+          "else": { "required": ["value"] }
+        },
+        {
+          "if": { "properties": { "op": { "enum": ["in", "not_in", "cidr", "not_cidr", "between"] } } },
+          "then": { "properties": { "value": { "type": "array" } } }
+        }
+      ]
+    },
+    "match": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["conditions"],
+      "properties": {
+        "combinator": { "type": "string", "enum": ["all", "any"], "default": "all" },
+        "conditions": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/condition" }
+        }
+      }
+    },
+    "destination": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["host", "port"],
+      "properties": {
+        "host": { "type": "string", "minLength": 1 },
+        "port": { "type": "integer", "minimum": 1, "maximum": 65535 }
+      }
+    },
+    "rule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "match", "action"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-zA-Z0-9._-]+$" },
+        "description": { "type": "string" },
+        "enabled": { "type": "boolean", "default": true },
+        "match": { "$ref": "#/$defs/match" },
+        "action": { "type": "string", "enum": ["forward", "drop"] },
+        "destination": { "$ref": "#/$defs/destination" }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "action": { "const": "drop" } } },
+          "then": { "not": { "required": ["destination"] } }
+        }
+      ]
+    }
+  }
+}

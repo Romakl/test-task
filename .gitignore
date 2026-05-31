@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+
+# Virtualenv / uv
+.venv/
+.python-version.local
+
+# Test / coverage / type caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# Local config & secrets — NEVER commit real rule/secret files
+.env
+config/rules.yaml
+
+# Security scan artefacts
+sbom.json
+bandit.sarif
+*.sarif
+
+# Editors / OS
+.idea/
+.vscode/
+.DS_Store

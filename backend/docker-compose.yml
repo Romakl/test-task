@@ -1,0 +1,63 @@
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: cef
+      POSTGRES_PASSWORD: cef
+      POSTGRES_DB: cef
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cef -d cef"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  proxy:
+    build: .
+    image: cef-filter-proxy:local
+    ports:
+      - "8080:8080/tcp"
+      - "5514:5514/udp"
+    environment:
+      APP_ENV: "development"
+      LISTEN_HOST: "0.0.0.0"
+      LISTEN_PORT: "5514"
+      ELK_HOST: "mock-elk"
+      ELK_PORT: "5140"
+      DATABASE_URL: "postgresql+asyncpg://cef:cef@db:5432/cef"
+      DB_AUTO_CREATE: "true"
+      LOG_JSON: "false"
+    volumes:
+      - ./config:/app/config
+    depends_on:
+      db:
+        condition: service_healthy
+      mock-elk:
+        condition: service_started
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
+
+  mock-elk:
+    build: .
+    image: cef-filter-proxy:local
+    command: ["python", "-m", "tools.mock_elk_receiver", "--host", "0.0.0.0", "--port", "5140"]
+    ports:
+      - "5140:5140/udp"
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
+
+volumes:
+  pgdata:

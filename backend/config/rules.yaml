@@ -1,0 +1,71 @@
+
+default_policy: forward
+
+rules:
+  - id: drop-heartbeats
+    description: Health/heartbeat events never need to reach the SIEM.
+    enabled: true
+    match:
+      combinator: all
+      conditions:
+        - field: filtertype
+          op: eq
+          value: heartbeat
+    action: drop
+
+  - id: drop-noisy-filter-42
+    description: Filter id 42 is a known false positive under investigation.
+    enabled: true
+    match:
+      combinator: all
+      conditions:
+        - field: filterid
+          op: eq
+          value: "42"
+    action: drop
+
+  - id: drop-low-severity-info
+    description: Low-severity netflow/fim chatter is not actionable.
+    enabled: true
+    match:
+      combinator: all
+      conditions:
+        - field: severity
+          op: lt
+          value: 3
+        - field: filtertype
+          op: in
+          value: ["netflow", "fim"]
+    action: drop
+
+  - id: forward-critical-to-siem
+    description: Critical alerts go to the priority pipeline.
+    enabled: true
+    match:
+      combinator: any
+      conditions:
+        - field: severity
+          op: ge
+          value: 9
+        - field: severity
+          op: eq
+          value: Very-High
+          case_insensitive: true
+    action: forward
+    destination:
+      host: 127.0.0.1
+      port: 5141
+
+  - id: forward-internal-ids
+    description: Internal IDS/IPS detections are always forwarded.
+    enabled: true
+    match:
+      combinator: all
+      conditions:
+        - field: filtertype
+          op: in
+          value: ["ids", "ips"]
+        - field: filteripaddress
+          op: cidr
+          value: ["10.0.0.0/8", "192.168.0.0/16"]
+    action: forward
