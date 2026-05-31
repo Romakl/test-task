@@ -18,7 +18,6 @@ WORKDIR /app
 RUN groupadd --gid 1000 appuser \
     && useradd --uid 1000 --gid appuser --shell /bin/bash --create-home appuser
 
-COPY --from=ghcr.io/astral-sh/uv:0.10 /uv /uvx /bin/
 COPY --from=builder --chown=appuser:appuser /app /app
 
 ENV PATH="/app/.venv/bin:$PATH" \
