@@ -15,8 +15,13 @@ FROM python:3.13-slim
 
 WORKDIR /app
 
+# Create an unprivileged runtime user, and remove the base image's system pip:
+# the app runs from /app/.venv (see PATH below), so the /usr/local pip is unused
+# at runtime and only adds vulnerable surface — e.g. CVE-2026-3219 /
+# CVE-2026-6357 in pip < 26.1, which Trivy flags in the image scan.
 RUN groupadd --gid 1000 appuser \
-    && useradd --uid 1000 --gid appuser --shell /bin/bash --create-home appuser
+    && useradd --uid 1000 --gid appuser --shell /bin/bash --create-home appuser \
+    && python -m pip uninstall --yes pip
 
 COPY --from=builder --chown=appuser:appuser /app /app
 

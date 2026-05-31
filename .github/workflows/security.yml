@@ -70,14 +70,29 @@ jobs:
           failure-threshold: error
       - name: Build image
         run: docker build -t cef-filter-proxy:ci .
+      # Gate: fail the build only on fixable HIGH/CRITICAL vulnerabilities.
+      # NOTE: aquasecurity/trivy-action discards the `severity` filter when
+      # format=sarif (it logs "Building SARIF report with all severities" and
+      # unsets TRIVY_SEVERITY) while still honoring exit-code — so a sarif gate
+      # also fails on MEDIUM/LOW. Keep the pass/fail gate on a non-sarif format.
       - name: Scan image (Trivy, fail on HIGH/CRITICAL)
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: cef-filter-proxy:ci
+          format: table
+          severity: HIGH,CRITICAL
+          exit-code: "1"
+          ignore-unfixed: true
+      # Report: emit SARIF across all severities for GitHub code scanning.
+      # Never fails the build (exit-code 0); the gate above owns pass/fail.
+      - name: Generate Trivy SARIF report (all severities)
+        if: always()
         uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: cef-filter-proxy:ci
           format: sarif
           output: trivy.sarif
-          severity: HIGH,CRITICAL
-          exit-code: "1"
+          exit-code: "0"
           ignore-unfixed: true
       - name: Upload Trivy SARIF to code scanning
         if: always()
