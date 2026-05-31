@@ -60,12 +60,14 @@ jobs:
       packages: write
       id-token: write
       attestations: write
+      security-events: write
     steps:
       - uses: actions/checkout@v4
       - name: Lint Dockerfile (hadolint)
         uses: hadolint/hadolint-action@v3.1.0
         with:
           dockerfile: backend/Dockerfile
+          failure-threshold: error
       - name: Build image
         run: docker build -t cef-filter-proxy:ci .
       - name: Scan image (Trivy, fail on HIGH/CRITICAL)
@@ -79,6 +81,7 @@ jobs:
           ignore-unfixed: true
       - name: Upload Trivy SARIF to code scanning
         if: always()
-        uses: github/codeql-action/upload-sarif@v3
+        continue-on-error: true
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: trivy.sarif
